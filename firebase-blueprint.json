@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "BranchData": {
+      "title": "Branch Data",
+      "description": "Stores targets, actuals, and previous year data for a specific branch and metric",
+      "type": "object",
+      "properties": {
+        "branch": { "type": "string" },
+        "metric": { "type": "string" },
+        "year": { "type": "number" },
+        "type": { "type": "string", "enum": ["target", "actual", "prevYear"] },
+        "values": { 
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["branch", "metric", "year", "type", "values"]
+    }
+  },
+  "firestore": {
+    "/branchData/{dataId}": {
+      "schema": "BranchData",
+      "description": "Collection for all branch-related metrics data"
+    }
+  }
+}

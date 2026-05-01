@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: branchData
+    // Document ID: auto-generated or {branch}_{metric}_{year}_{type}
+    // Fields:
+    //   - branch: string (required)
+    //   - metric: string (required)
+    //   - year: number (required)
+    //   - type: string (required, enum: target, actual, prevYear)
+    //   - values: list of numbers (required, size 12)
+    //   - updatedAt: timestamp
+    //   - updatedBy: string (uid)
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isValidBranchData(data) {
+      return data.branch is string && data.branch.size() > 0 && data.branch.size() < 100 &&
+             data.metric is string && data.metric.size() > 0 &&
+             data.year is number &&
+             data.type in ['target', 'actual', 'prevYear'] &&
+             data.values is list && data.values.size() == 12;
+    }
+
+    match /branchData/{dataId} {
+      allow read: if true; 
+      allow write: if isValidBranchData(request.resource.data);
+    }
+  }
+}
