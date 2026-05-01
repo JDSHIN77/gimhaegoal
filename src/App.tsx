@@ -130,6 +130,19 @@ const formatValue = (value: number, unit: string) => {
   return `${formatCurrency(value)}${unit}`;
 };
 
+const calculateAchievement = (actual: number, target: number, metricLabel?: string) => {
+  if (!target || target === 0) return 0;
+  
+  // Use the requested formula for negative targets: (1 + (Actual - Target) / |Target|) * 100
+  // This measures progress/improvement from the target point.
+  if (target < 0) {
+    return (1 + (actual - target) / Math.abs(target)) * 100;
+  }
+
+  // Standard formula for positive targets
+  return (actual / target) * 100;
+};
+
 // --- Components ---
 
 const ComparisonCard = ({ 
@@ -614,16 +627,16 @@ export default function App() {
   const monthTarget = currentBranchTarget?.[selectedMetric]?.[selectedBranch]?.[selectedMonth] || 1; // Avoid div by zero
   const monthPrevYear = currentBranchPrevYear?.[selectedMetric]?.[selectedBranch]?.[selectedMonth] || 1;
 
-  const monthAchievementVsTarget = (monthActual / monthTarget) * 100;
-  const monthAchievementVsPrevYear = (monthActual / monthPrevYear) * 100;
+  const monthAchievementVsTarget = calculateAchievement(monthActual, monthTarget, metricConfig[selectedMetric]?.label);
+  const monthAchievementVsPrevYear = calculateAchievement(monthActual, monthPrevYear, metricConfig[selectedMetric]?.label);
 
   // YTD Calculations
   const ytdActual = currentBranchActual?.[selectedMetric]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 0;
   const ytdTarget = currentBranchTarget?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
   const ytdPrevYear = currentBranchPrevYear?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
 
-  const ytdAchievementVsTarget = (ytdActual / ytdTarget) * 100;
-  const ytdAchievementVsPrevYear = (ytdActual / ytdPrevYear) * 100;
+  const ytdAchievementVsTarget = calculateAchievement(ytdActual, ytdTarget, metricConfig[selectedMetric]?.label);
+  const ytdAchievementVsPrevYear = calculateAchievement(ytdActual, ytdPrevYear, metricConfig[selectedMetric]?.label);
 
   const chartData = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => ({
@@ -888,9 +901,9 @@ export default function App() {
                       <div className="flex flex-row justify-end gap-1 mb-3 whitespace-nowrap">
                           <div className={cn(
                             "text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded-lg flex items-center gap-0.5",
-                            (actual / target) >= 1 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                            calculateAchievement(actual, target, config.label) >= 100 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
                           )}>
-                            <span>목표 {((actual / target) * 100).toFixed(1)}%</span>
+                            <span>목표 {calculateAchievement(actual, target, config.label).toFixed(1)}%</span>
                             {(key === 'atp' || key === 'cpp') && (
                               <span className="text-[7px] sm:text-[8px] opacity-80 font-medium">
                                 ({(actual - target) >= 0 ? '+' : ''}{formatCurrency(actual - target)}원)
@@ -899,9 +912,9 @@ export default function App() {
                           </div>
                           <div className={cn(
                             "text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded-lg flex items-center gap-0.5",
-                            (actual / prev) >= 1 ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-500"
+                            calculateAchievement(actual, prev, config.label) >= 100 ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-500"
                           )}>
-                            <span>전년 {((actual / prev) * 100).toFixed(1)}%</span>
+                            <span>전년 {calculateAchievement(actual, prev, config.label).toFixed(1)}%</span>
                             {(key === 'atp' || key === 'cpp') && (
                               <span className="text-[7px] sm:text-[8px] opacity-80 font-medium">
                                 ({(actual - prev) >= 0 ? '+' : ''}{formatCurrency(actual - prev)}원)
@@ -944,7 +957,7 @@ export default function App() {
 
                   <div className="flex-1 min-h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 40, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
@@ -963,7 +976,13 @@ export default function App() {
                           axisLine={false} 
                           tickLine={false} 
                           tick={{ fill: '#94a3b8', fontSize: 12 }}
-                          tickFormatter={(val) => val >= 1000000 ? `${(val/1000000).toFixed(0)}M` : val >= 1000 ? `${(val/1000).toFixed(0)}K` : val}
+                          tickFormatter={(val) => {
+                            const absVal = Math.abs(val);
+                            const sign = val < 0 ? '-' : '';
+                            if (absVal >= 1000000) return `${sign}${Math.round(absVal / 1000000)}M`;
+                            if (absVal >= 1000) return `${sign}${Math.round(absVal / 1000)}K`;
+                            return `${sign}${absVal}`;
+                          }}
                         />
                         <Tooltip 
                           contentStyle={{ 
