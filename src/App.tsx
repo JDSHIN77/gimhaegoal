@@ -214,6 +214,9 @@ export default function App() {
   const [newMetricLabel, setNewMetricLabel] = useState('');
   const [newMetricUnit, setNewMetricUnit] = useState('');
   const [deleteConfirmMetric, setDeleteConfirmMetric] = useState<string | null>(null);
+  const [isTargetPasswordPromptOpen, setIsTargetPasswordPromptOpen] = useState(false);
+  const [targetPasswordInput, setTargetPasswordInput] = useState('');
+  const [targetPasswordError, setTargetPasswordError] = useState('');
 
   // Admin & Login State
   const [isLoggedIn, setIsLoggedIn] = useState(sessionStorage.getItem('isLoggedIn') === 'true');
@@ -631,9 +634,16 @@ export default function App() {
   const monthAchievementVsPrevYear = calculateAchievement(monthActual, monthPrevYear, metricConfig[selectedMetric]?.label);
 
   // YTD Calculations
-  const ytdActual = currentBranchActual?.[selectedMetric]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 0;
-  const ytdTarget = currentBranchTarget?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
-  const ytdPrevYear = currentBranchPrevYear?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
+  let ytdActual = currentBranchActual?.[selectedMetric]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 0;
+  let ytdTarget = currentBranchTarget?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
+  let ytdPrevYear = currentBranchPrevYear?.[selectedMetric]?.[selectedBranch]?.slice(0, selectedMonth + 1).reduce((a, b) => a + b, 0) || 1;
+
+  if (selectedMetric === 'atp' || selectedMetric === 'cpp' || metricConfig[selectedMetric]?.unit === '%') {
+    const period = selectedMonth + 1;
+    ytdActual = ytdActual / period;
+    ytdTarget = ytdTarget / period;
+    ytdPrevYear = ytdPrevYear / period;
+  }
 
   const ytdAchievementVsTarget = calculateAchievement(ytdActual, ytdTarget, metricConfig[selectedMetric]?.label);
   const ytdAchievementVsPrevYear = calculateAchievement(ytdActual, ytdPrevYear, metricConfig[selectedMetric]?.label);
@@ -787,7 +797,11 @@ export default function App() {
                     실적 대시보드
                   </button>
                   <button 
-                    onClick={() => setActiveView('targets')}
+                    onClick={() => {
+                      setIsTargetPasswordPromptOpen(true);
+                      setTargetPasswordInput('');
+                      setTargetPasswordError('');
+                    }}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                       activeView === 'targets' 
@@ -1548,6 +1562,80 @@ export default function App() {
                   className="flex-1 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-200"
                 >
                   삭제 실행
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Target Settings Password Prompt Modal */}
+      <AnimatePresence>
+        {isTargetPasswordPromptOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4">
+                  <Settings size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">목표 설정 및 관리</h3>
+                <p className="text-slate-500 text-sm mt-2 text-center">
+                  접근 권한이 필요합니다.<br/>비밀번호를 입력해주세요.
+                </p>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <input 
+                    type="password" 
+                    placeholder="비밀번호"
+                    value={targetPasswordInput}
+                    onChange={(e) => {
+                      setTargetPasswordInput(e.target.value);
+                      setTargetPasswordError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (targetPasswordInput === '25804883') {
+                          setIsTargetPasswordPromptOpen(false);
+                          setActiveView('targets');
+                        } else {
+                          setTargetPasswordError('비밀번호가 일치하지 않습니다.');
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-center tracking-widest text-lg font-bold"
+                  />
+                  {targetPasswordError && (
+                    <p className="mt-2 text-xs font-bold text-rose-500 text-center">{targetPasswordError}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsTargetPasswordPromptOpen(false)}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={() => {
+                    if (targetPasswordInput === '25804883') {
+                      setIsTargetPasswordPromptOpen(false);
+                      setActiveView('targets');
+                    } else {
+                      setTargetPasswordError('비밀번호가 일치하지 않습니다.');
+                    }
+                  }}
+                  className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                >
+                  확인
                 </button>
               </div>
             </motion.div>
